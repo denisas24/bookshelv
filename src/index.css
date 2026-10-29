@@ -1,31 +1,33 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  /* Dark: moss slate (Letterboxd-inspired, green-tinted) */
+  /* Dunkel: warmes Fast-Schwarz, Gegenstück zum Papier */
   --font-sans: 'Source Sans 3', -apple-system, 'Segoe UI', system-ui, sans-serif;
   --font-serif: 'Source Serif 4', Georgia, serif;
-  --bg: #131a17;
-  --bg-secondary: #1a221e;
-  --bg-card: #1a221e;
-  --bg-elevated: #29342f;
+  --bg: #1b1a18;
+  --bg-secondary: #232220;
+  --bg-card: #232220;
+  --bg-elevated: #2c2a26;
   --bg-hover: rgba(255,255,255,0.03);
-  --border: #232c27;
-  --border-hover: #36433c;
-  --text-primary: #e8ede9;
-  --text-secondary: #9bb0a4;
-  --text-muted: #66786d;
-  --accent: #7fb38c;
-  --accent-hover: #93c39f;
-  --accent-dim: rgba(127,179,140,0.12);
-  --on-accent: #10161a;
-  --green: #7fb38c;
-  --star: #7fb38c;
+  --border: #33302b;
+  --border-hover: #4a463f;
+  --text-primary: #ece6da;
+  --text-secondary: #b3ac9f;
+  --text-muted: #8a8478;
+  --accent: #ece6da;
+  --accent-hover: #ffffff;
+  --accent-dim: rgba(236,230,218,0.10);
+  --on-accent: #1b1a18;
+  --green: #ece6da;
+  --star: #ece6da;
+  --ribbon: #b0453a;
   --danger: #e5534b;
   --radius: 3px;
   --radius-lg: 6px;
 }
 
 [data-theme="light"] {
+  /* Papier und Fast-Schwarz als einzige Akzentfarbe */
   --bg: #f5f0e8;
   --bg-secondary: #efe9de;
   --bg-card: #efe9de;
@@ -33,15 +35,16 @@
   --bg-hover: rgba(0,0,0,0.025);
   --border: #e0d8c8;
   --border-hover: #cbc1ad;
-  --text-primary: #23211c;
-  --text-secondary: #5c574c;
+  --text-primary: #1c1b19;
+  --text-secondary: #66625a;
   --text-muted: #8c8576;
-  --accent: #627f65;
-  --accent-hover: #52705a;
-  --accent-dim: rgba(98,127,101,0.12);
-  --on-accent: #fbf8f2;
-  --green: #627f65;
-  --star: #9a7b34;
+  --accent: #1c1b19;
+  --accent-hover: #000000;
+  --accent-dim: rgba(28,27,25,0.08);
+  --on-accent: #f5f0e8;
+  --green: #1c1b19;
+  --star: #1c1b19;
+  --ribbon: #8f2b22;
   --danger: #b5432f;
 }
 
@@ -967,3 +970,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .star-half.left { left: 0; }
 .star-half.right { right: 0; }
 .star-value { margin-left: 10px; font-size: 13px; color: var(--text-muted); min-width: 2em; }
+
+/* Bookshelv: Login ohne Unterzeile */
+.auth-logo { margin-bottom: 32px; }
+.auth-logo:has(+ .auth-tagline) { margin-bottom: 8px; }
