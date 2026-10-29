@@ -1,47 +1,27 @@
 import { NavLink } from 'react-router-dom';
 
-const BookIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
-  </svg>
+const Icon = ({ children }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">{children}</svg>
 );
-const CompassIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
-  </svg>
-);
-const HeartIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
-  </svg>
-);
-const BookmarkIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
-  </svg>
-);
-const UserIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
-  </svg>
-);
+const LibraryIcon = () => <Icon><path d="M4 4h4v16H4zM10 4h4v16h-4z"/><path d="M16.5 5.2l3.6 1-3.4 13.6-3.6-1z"/></Icon>;
+const ExploreIcon = () => <Icon><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.3-4.3"/></Icon>;
+const AddIcon = () => <Icon><path d="M12 5v14M5 12h14"/></Icon>;
+const QuoteIcon = () => <Icon><path d="M6 7h5v5H8.5c0 2 .8 3.2 2.5 4"/><path d="M14 7h5v5h-2.5c0 2 .8 3.2 2.5 4"/></Icon>;
+const UserIcon = () => <Icon><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c1.4-3.6 12.6-3.6 14 0"/></Icon>;
 
-const tabs = [
-  { to: '/journal', label: 'Journal', Icon: BookIcon },
-  { to: '/explore', label: 'Explore', Icon: CompassIcon },
-  { to: '/favorites', label: 'Favorites', Icon: HeartIcon },
-  { to: '/wishlist', label: 'Wishlist', Icon: BookmarkIcon },
-  { to: '/profile', label: 'Profile', Icon: UserIcon },
-];
-
-export default function BottomNav() {
+export default function BottomNav({ onAdd }) {
+  const link = (to, label, I) => (
+    <NavLink to={to} aria-label={label} title={label} className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+      <I />
+    </NavLink>
+  );
   return (
     <nav className="bottom-nav">
-      {tabs.map(({ to, label, Icon }) => (
-        <NavLink key={to} to={to} aria-label={label} title={label} className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-          <Icon />
-        </NavLink>
-      ))}
+      {link('/library', 'Library', LibraryIcon)}
+      {link('/explore', 'Explore', ExploreIcon)}
+      <button type="button" className="nav-item" aria-label="Add book" title="Add book" onClick={onAdd}><AddIcon /></button>
+      {link('/quotes', 'Quotes', QuoteIcon)}
+      {link('/profile', 'Profile', UserIcon)}
     </nav>
   );
 }
