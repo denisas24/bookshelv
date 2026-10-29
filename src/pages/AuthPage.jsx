@@ -42,9 +42,7 @@ export default function AuthPage() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-logo">Bookshelv</div>
-        <p className="auth-tagline">
-          {mode === 'forgot' ? 'reset your password' : 'taste that lingers'}
-        </p>
+        {mode === 'forgot' && <p className="auth-tagline">reset your password</p>}
 
         {error && <div className="auth-error">{error}</div>}
         {success && <div className="auth-success">{success}</div>}
