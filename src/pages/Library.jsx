@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { loadLibrary, renderStars, lastDays, localDate, setReadingDay, setPageReached } from '../lib/books.js';
 import BookCover from '../components/BookCover.jsx';
 
-const TABS = [['read', 'Read'], ['reading', 'Reading'], ['want', 'Want to read']];
+const TABS = [['read', 'Read'], ['reading', 'Reading'], ['want', 'Readlist']];
 const CHECK = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M5 12.5l4.5 4.5L19 7.5" />
@@ -81,7 +81,7 @@ export default function Library({ reloadKey, onEdit, onAdd }) {
         <div className="lib-list">{[0, 1, 2].map((i) => <div key={i} className="book-row skeleton-row" />)}</div>
       ) : list.length === 0 ? (
         <div className="lib-empty">
-          <p>{tab === 'read' ? 'Books you have finished appear here.' : tab === 'reading' ? 'Nothing on the go right now.' : 'Your reading list is empty.'}</p>
+          <p>{tab === 'read' ? 'Books you have finished appear here.' : tab === 'reading' ? 'Nothing on the go right now.' : 'Your readlist is empty.'}</p>
           <button type="button" className="btn-primary" onClick={onAdd}>Add a book</button>
         </div>
       ) : tab === 'reading' ? (

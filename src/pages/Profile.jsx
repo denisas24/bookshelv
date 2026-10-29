@@ -1,156 +1,126 @@
-import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase.js';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../lib/auth.jsx';
+import { useTheme } from '../lib/theme.jsx';
+import { loadMyQuotes, uploadAvatar } from '../lib/books.js';
 import { showToast } from '../lib/utils.js';
-import TeaCard from '../components/TeaCard.jsx';
-import TeaDetailModal from '../components/TeaDetailModal.jsx';
-import TeaFormModal from '../components/TeaFormModal.jsx';
+import Avatar from '../components/Avatar.jsx';
+
+const GearIcon = () => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 01-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 010-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 014 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 010 4h-.1a1.7 1.7 0 00-1.5 1z" />
+  </svg>
+);
 
 export default function Profile() {
   const { user, profile, signOut, updateProfile } = useAuth();
-  const [recentTeas, setRecentTeas] = useState([]);
-  const [favTeas, setFavTeas] = useState([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [editingName, setEditingName] = useState(false);
-  const [nameInput, setNameInput] = useState('');
-  const [savingName, setSavingName] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [viewEntry, setViewEntry] = useState(null);
-  const [editEntry, setEditEntry] = useState(null);
-  const [showForm, setShowForm] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const fileRef = useRef();
+  const { theme, toggleTheme } = useTheme();
+  const [quotes, setQuotes] = useState(null);
+  const [settings, setSettings] = useState(false);
+  const [name, setName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
 
-  const load = async () => {
-    const [{ data: recent }, { data: favs }, { count }] = await Promise.all([
-      supabase.from('tea_entries').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(6),
-      supabase.from('tea_entries').select('*').eq('user_id', user.id).eq('favorite', true).order('created_at', { ascending: false }),
-      supabase.from('tea_entries').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-    ]);
-    setRecentTeas(recent || []);
-    setFavTeas(favs || []);
-    setTotalCount(count || 0);
-    setLoading(false);
-  };
+  useEffect(() => {
+    loadMyQuotes().then(({ data }) => setQuotes(data || []));
+  }, []);
+  useEffect(() => { if (settings) setName(profile?.display_name || ''); }, [settings, profile]);
 
-  useEffect(() => { load(); }, []);
-
-  const saveName = async () => {
-    const trimmed = nameInput.trim();
+  const saveName = async (e) => {
+    e.preventDefault();
+    const trimmed = name.trim();
     if (!trimmed) return;
-    setSavingName(true);
-    const { error } = await updateProfile({ display_name: trimmed });
-    setSavingName(false);
-    if (error) { showToast('Name already taken.'); return; }
-    setEditingName(false);
-    showToast('Name updated.');
+    setSaving(true);
+    const { error } = await updateProfile({ display_name: trimmed.slice(0, 60) });
+    setSaving(false);
+    showToast(error ? 'Could not save the name.' : 'Name saved');
   };
 
-  const handleAvatar = async (e) => {
-    const file = e.target.files[0];
+  const onPhoto = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
-    setUploadingAvatar(true);
-    try {
-      const ext = file.name.split('.').pop();
-      const path = `avatars/${user.id}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
-      if (uploadError) throw uploadError;
-      const { data } = supabase.storage.from('avatars').getPublicUrl(path);
-      await updateProfile({ avatar_url: data.publicUrl });
-      showToast('Avatar updated.');
-    } catch {
-      showToast('Upload failed. Set up Storage in Supabase first.');
-    }
-    setUploadingAvatar(false);
+    if (file.size > 2 * 1024 * 1024) { showToast('Please choose a photo under 2 MB.'); return; }
+    setUploading(true);
+    const res = await uploadAvatar(user.id, file);
+    if (!res.error) await updateProfile({ avatar_url: res.url });
+    setUploading(false);
+    showToast(res.error ? 'Upload failed.' : 'Photo updated');
   };
-
-  const initials = profile?.display_name
-    ? profile.display_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
-    : user?.email?.[0]?.toUpperCase() || '?';
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 32 }}>
-        <div style={{ position: 'relative' }}>
-          <div
-            className="avatar"
-            style={{ width: 64, height: 64, fontSize: 20, cursor: 'pointer' }}
-            onClick={() => fileRef.current?.click()}
-            title="Click to change avatar"
-          >
-            {profile?.avatar_url ? <img src={profile.avatar_url} alt="" /> : initials}
-          </div>
-          {uploadingAvatar && (
-            <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#fff' }}>…</div>
-          )}
-          <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatar} />
+    <div className="library">
+      <header className="profile-head">
+        <Avatar profile={profile} size={56} />
+        <div className="profile-name">
+          <h1 className="lib-logo">{profile?.display_name || 'Reader'}</h1>
         </div>
-        <div style={{ flex: 1 }}>
-          {editingName ? (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input value={nameInput} onChange={e => setNameInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false); }}
-                autoFocus style={{ maxWidth: 220 }} />
-              <button className="btn-primary" style={{ padding: '6px 14px', fontSize: 13 }} onClick={saveName} disabled={savingName}>
-                {savingName ? '…' : 'Save'}
-              </button>
-              <button className="btn-ghost" style={{ padding: '6px 14px', fontSize: 13 }} onClick={() => setEditingName(false)}>Cancel</button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <h1 style={{ fontSize: 22, fontFamily: 'var(--font-serif)', fontWeight: 600 }}>
-                {profile?.display_name || <span style={{ color: 'var(--text-muted)', fontSize: 16 }}>No display name</span>}
-              </h1>
-              <button onClick={() => { setNameInput(profile?.display_name || ''); setEditingName(true); }}
-                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', padding: 0, cursor: 'pointer', fontSize: 13 }}>✎</button>
-            </div>
-          )}
-          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>{totalCount} teas logged</p>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Click avatar to change photo</p>
-        </div>
-      </div>
+        <button type="button" className="icon-btn" aria-label="Settings" title="Settings" onClick={() => setSettings(true)}><GearIcon /></button>
+      </header>
 
-      <section style={{ marginBottom: 32 }}>
-        <p style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>Recent activity</p>
-        {loading ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {Array(3).fill(0).map((_, i) => <div key={i} className="skeleton" style={{ height: 72, borderRadius: 8 }} />)}
-          </div>
-        ) : recentTeas.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Nothing logged yet.</p>
+      <section className="profile-section">
+        <h2 className="section-label">Quotes</h2>
+        {quotes === null ? null : quotes.length === 0 ? (
+          <p className="muted-text">Quotes you save from a book will gather here, with the page they came from.</p>
         ) : (
-          <div className="tea-grid-list">
-            {recentTeas.map(e => <TeaCard key={e.id} entry={e} onClick={setViewEntry} />)}
-          </div>
+          <ul className="quote-list">
+            {quotes.map((q) => (
+              <li key={q.id} className="quote-item">
+                <blockquote>{q.body}</blockquote>
+                <p className="quote-src">{q.work?.title}{q.page ? `, p. ${q.page}` : ''}</p>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 
-      {favTeas.length > 0 && (
-        <section style={{ marginBottom: 32 }}>
-          <p style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>Favorites</p>
-          <div className="tea-grid-list">
-            {favTeas.map(e => <TeaCard key={e.id} entry={e} onClick={setViewEntry} />)}
+      {settings && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setSettings(false)}>
+          <div className="modal book-sheet">
+            <div className="modal-header">
+              <h2>Settings</h2>
+              <button type="button" className="modal-close" onClick={() => setSettings(false)} aria-label="Close">×</button>
+            </div>
+
+            <div className="form-group">
+              <span className="form-label">Profile photo</span>
+              <div className="photo-row">
+                <Avatar profile={profile} size={48} />
+                <button type="button" className="btn-ghost" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                  {uploading ? 'Uploading…' : 'Choose photo'}
+                </button>
+                <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={onPhoto} />
+              </div>
+            </div>
+
+            <form className="form-group" onSubmit={saveName}>
+              <label className="form-label" htmlFor="pf-name">Username</label>
+              <div className="photo-row">
+                <input id="pf-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} required />
+                <button type="submit" className="btn-primary" disabled={saving || name.trim() === (profile?.display_name || '')}>Save</button>
+              </div>
+            </form>
+
+            <div className="form-group">
+              <span className="form-label">Appearance</span>
+              <div className="seg">
+                <button type="button" className={`seg-btn${theme === 'light' ? ' on' : ''}`} onClick={() => theme !== 'light' && toggleTheme()}>Paper</button>
+                <button type="button" className={`seg-btn${theme === 'dark' ? ' on' : ''}`} onClick={() => theme !== 'dark' && toggleTheme()}>Dark</button>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <span className="form-label">Account</span>
+              <p className="muted-text">{user?.email}</p>
+            </div>
+
+            <div className="sheet-actions">
+              <button type="button" className="btn-ghost" onClick={signOut}>Sign out</button>
+            </div>
           </div>
-        </section>
+        </div>
       )}
-
-      <div className="divider" />
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button className="btn-ghost" onClick={signOut}>Sign out</button>
-        {!confirmDelete ? (
-          <button className="btn-danger" onClick={() => setConfirmDelete(true)}>Delete account</button>
-        ) : (
-          <button className="btn-danger" onClick={async () => {
-            await supabase.from('tea_entries').delete().eq('user_id', user.id);
-            signOut();
-          }}>Confirm — this is permanent</button>
-        )}
-      </div>
-
-      <TeaDetailModal entry={viewEntry} open={!!viewEntry} onClose={() => setViewEntry(null)}
-        onEdit={e => { setViewEntry(null); setEditEntry(e); setShowForm(true); }} onDelete={load} canEdit={true} />
-      <TeaFormModal open={showForm} onClose={() => { setShowForm(false); setEditEntry(null); }} onSaved={load} entry={editEntry} />
     </div>
   );
 }
