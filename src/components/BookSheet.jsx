@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react';
 import StarInput from './StarInput.jsx';
-import { GENRES, STATUSES, addBook, updateEntry, removeEntry, logRead, localDate } from '../lib/books.js';
+import { GENRES, STATUSES, addBook, updateEntry, removeEntry, logRead, localDate, genreLabel } from '../lib/books.js';
 import { showToast } from '../lib/utils.js';
 
 // Hinzufügen (entry = null) oder Bearbeiten eines Bibliothekseintrags.
-export default function BookSheet({ open, entry, onClose, onSaved }) {
+export default function BookSheet({ open, entry, initialStatus = 'want', onClose, onSaved }) {
   const editing = !!entry;
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
-  const [pages, setPages] = useState('');
   const [genre, setGenre] = useState('');
   const [status, setStatus] = useState('want');
   const [favorite, setFavorite] = useState(false);
@@ -19,15 +18,16 @@ export default function BookSheet({ open, entry, onClose, onSaved }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [changeGenre, setChangeGenre] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setTitle(entry?.work?.title || ''); setAuthor(entry?.work?.author || '');
-    setPages(entry?.work?.pages || ''); setGenre(entry?.genre || entry?.work?.genre || '');
-    setStatus(entry?.status || 'want'); setFavorite(!!entry?.favorite);
+    setGenre(entry?.genre || entry?.work?.genre || '');
+    setStatus(entry?.status || initialStatus); setFavorite(!!entry?.favorite);
     setLogIt(false); setRating(0); setFinishedOn(localDate()); setReview('');
-    setError(''); setBusy(false); setConfirmRemove(false);
-  }, [open, entry]);
+    setError(''); setBusy(false); setConfirmRemove(false); setChangeGenre(false);
+  }, [open, entry, initialStatus]);
 
   if (!open) return null;
 
@@ -39,9 +39,11 @@ export default function BookSheet({ open, entry, onClose, onSaved }) {
     setBusy(true); setError('');
     let res;
     if (!editing) {
-      res = await addBook({ title, author, pages: Number(pages) || null, genre, status, rating, finishedOn, review });
+      res = await addBook({ title, author, status, rating, finishedOn, review });
     } else {
-      res = await updateEntry(entry.id, { status: logIt ? 'read' : status, genre: genre || null, favorite });
+      const fields = { status: logIt ? 'read' : status, favorite };
+      if (changeGenre) fields.genre = genre || null;
+      res = await updateEntry(entry.id, fields);
       if (!res.error && logIt) {
         res = await logRead({ workId: entry.work.id, rating, finishedOn, review, isReread: !!entry.log });
       }
@@ -81,10 +83,6 @@ export default function BookSheet({ open, entry, onClose, onSaved }) {
               <label className="form-label" htmlFor="bs-author">Author</label>
               <input id="bs-author" value={author} onChange={(e) => setAuthor(e.target.value)} maxLength={200} />
             </div>
-            <div className="form-group">
-              <label className="form-label" htmlFor="bs-pages">Pages</label>
-              <input id="bs-pages" inputMode="numeric" value={pages} onChange={(e) => setPages(e.target.value.replace(/\D/g, ''))} />
-            </div>
           </>
         )}
         {editing && <p className="sheet-meta">{entry.work.author}</p>}
@@ -98,13 +96,23 @@ export default function BookSheet({ open, entry, onClose, onSaved }) {
           </div>
         </div>
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="bs-genre">Genre</label>
-          <select id="bs-genre" value={genre} onChange={(e) => setGenre(e.target.value)}>
-            <option value="">Choose…</option>
-            {GENRES.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
-          </select>
-        </div>
+        {editing && (
+          <div className="form-group">
+            <span className="form-label">Genre</span>
+            {changeGenre ? (
+              <select id="bs-genre" value={genre} onChange={(e) => setGenre(e.target.value)} aria-label="Genre">
+                <option value="">Not set</option>
+                {GENRES.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+              </select>
+            ) : (
+              <p className="genre-line">
+                {genreLabel(genre) || 'Not detected yet'}
+                <button type="button" className="link-btn muted" onClick={() => setChangeGenre(true)}>Change</button>
+              </p>
+            )}
+          </div>
+        )}
+        {!editing && <p className="hint">Genre, pages and cover are filled in automatically where Open Library knows the book.</p>}
 
         {editing && (
           <label className="check-row">
