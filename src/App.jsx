@@ -1,15 +1,13 @@
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './lib/auth.jsx';
 import { useTheme } from './lib/theme.jsx';
 import AuthPage from './pages/AuthPage.jsx';
 import ResetPassword from './pages/ResetPassword.jsx';
-import Journal from './pages/Journal.jsx';
-import Explore from './pages/Explore.jsx';
-import Favorites from './pages/Favorites.jsx';
-import Friends from './pages/Friends.jsx';
-import Profile from './pages/Profile.jsx';
-import Wishlist from './pages/Wishlist.jsx';
-import TeaPage from './pages/TeaPage.jsx';
+import Library from './pages/Library.jsx';
+import Soon from './pages/Soon.jsx';
+import Me from './pages/Me.jsx';
+import BookSheet from './components/BookSheet.jsx';
 import BottomNav from './components/BottomNav.jsx';
 
 const SunIcon = () => (
@@ -36,6 +34,11 @@ export default function App() {
   const { user, loading } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [sheet, setSheet] = useState({ open: false, entry: null });
+  const [reloadKey, setReloadKey] = useState(0);
+  const openAdd = () => setSheet({ open: true, entry: null });
+  const openEdit = (entry) => setSheet({ open: true, entry });
 
   if (location.pathname === '/reset-password') return <ResetPassword />;
 
@@ -58,17 +61,16 @@ export default function App() {
       </div>
       <main className="main-content">
         <Routes>
-          <Route path="/" element={<Navigate to="/journal" replace />} />
-          <Route path="/journal" element={<Journal />} />
-          <Route path="/explore" element={<Explore />} />
-          <Route path="/tea/:key" element={<TeaPage />} />
-          <Route path="/favorites" element={<Favorites />} />
-          <Route path="/wishlist" element={<Wishlist />} />
-          <Route path="/friends" element={<Friends />} />
-          <Route path="/profile" element={<Profile />} />
+          <Route path="/" element={<Navigate to="/library" replace />} />
+          <Route path="/library" element={<Library reloadKey={reloadKey} onEdit={openEdit} onAdd={openAdd} />} />
+          <Route path="/explore" element={<Soon title="Explore" text="Search and discover books. Coming soon." />} />
+          <Route path="/quotes" element={<Soon title="Quotes" text="Your saved quotes will live here. Coming soon." />} />
+          <Route path="/profile" element={<Me />} />
+          <Route path="*" element={<Navigate to="/library" replace />} />
         </Routes>
       </main>
-      <BottomNav />
+      <BottomNav onAdd={() => { if (location.pathname !== '/library') navigate('/library'); openAdd(); }} />
+      <BookSheet open={sheet.open} entry={sheet.entry} onClose={() => setSheet({ open: false, entry: null })} onSaved={() => setReloadKey((k) => k + 1)} />
     </div>
   );
 }

@@ -974,3 +974,78 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Bookshelv: Login ohne Unterzeile */
 .auth-logo { margin-bottom: 32px; }
 .auth-logo:has(+ .auth-tagline) { margin-bottom: 8px; }
+
+/* ============================================================
+   Bookshelv: Bibliothek (Papier, Fast-Schwarz, Letterboxd-Ruhe)
+   ============================================================ */
+.btn-primary { color: var(--on-accent); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.main-content { max-width: 640px; padding-top: 20px; }
+
+.lib-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 44px 14px 0; }
+.lib-logo { font-family: var(--font-serif); font-weight: 700; font-size: 24px; letter-spacing: -0.01em; }
+
+.lib-tabs { display: flex; gap: 22px; border-bottom: 1px solid var(--border); }
+.lib-tab {
+  background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0;
+  padding: 8px 0 9px; margin-bottom: -1px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.lib-tab.on { color: var(--text-primary); border-bottom-color: var(--text-primary); }
+
+.lib-list { display: flex; flex-direction: column; }
+.book-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px;
+  width: 100%; padding: 11px 2px; background: none; border: 0; border-bottom: 1px solid var(--border);
+  border-radius: 0; text-align: left; color: inherit; font-weight: 400; cursor: pointer;
+}
+.book-row:hover { background: var(--bg-hover); }
+.book-main { display: flex; align-items: center; gap: 12px; min-width: 0; background: none; border: 0; padding: 0; color: inherit; text-align: left; font-weight: 400; cursor: pointer; }
+.book-text { display: flex; flex-direction: column; min-width: 0; }
+.book-title { font-family: var(--font-serif); font-weight: 600; font-size: 16px; line-height: 1.25; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.book-author { font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.book-right { display: flex; align-items: center; gap: 10px; }
+.book-right .stars { color: var(--star); font-size: 14px; white-space: nowrap; }
+.book-fav { color: var(--text-primary); font-size: 13px; }
+
+.book-cover { position: relative; flex: none; width: 30px; height: 45px; border-radius: 2px; background: var(--bg-elevated); overflow: hidden; }
+.book-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.book-cover .ribbon { position: absolute; right: 5px; top: 0; width: 5px; height: 15px; background: var(--ribbon); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%); }
+
+/* Reiter Reading: Liste wie die anderen, Tracker erst nach einem Tipp aufs Buch */
+.book-block { border-bottom: 1px solid var(--border); }
+.book-block > .book-row { border-bottom: 0; }
+.chev { width: 20px; text-align: center; color: var(--text-muted); font-size: 16px; }
+.track-panel { padding: 2px 2px 14px 42px; }
+.track-days { display: flex; gap: 6px; }
+.track-day { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 40px; }
+.track-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); text-align: center; line-height: 1.35; font-variant-numeric: tabular-nums; }
+.day-check { width: 34px; height: 34px; border-radius: 50%; padding: 0; border: 1px solid var(--border-hover); background: none; color: var(--on-accent); display: grid; place-items: center; }
+.day-check svg { width: 15px; height: 15px; }
+.day-check.on { background: var(--accent); border-color: var(--accent); }
+.day-page { min-height: 12px; font-size: 10px; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.track-foot { margin-top: 6px; }
+.page-ask { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; color: var(--text-muted); }
+.page-ask input { width: 84px; padding: 6px 8px; }
+
+.lib-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; padding: 36px 2px; color: var(--text-muted); }
+.skeleton-row { height: 68px; cursor: default; background: linear-gradient(90deg, transparent, var(--bg-hover), transparent); }
+
+.nav-item[type="button"] { cursor: pointer; }
+
+/* Blatt zum Hinzufügen und Bearbeiten */
+.book-sheet h2 { font-family: var(--font-serif); font-size: 20px; }
+.sheet-meta { color: var(--text-muted); margin: -6px 0 14px; }
+.seg { display: flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.seg-btn { flex: 1; background: none; border: 0; border-radius: 0; padding: 8px 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
+.seg-btn + .seg-btn { border-left: 1px solid var(--border); }
+.seg-btn.on { background: var(--accent); color: var(--on-accent); }
+.check-row { display: flex; align-items: center; gap: 8px; margin: 4px 0 14px; font-size: 14px; color: var(--text-secondary); }
+.check-row input { width: auto; }
+.btn-ghost.wide { width: 100%; margin-bottom: 14px; }
+.log-box { border-top: 1px solid var(--border); padding-top: 14px; margin-top: 4px; }
+.hint { font-size: 12px; color: var(--text-muted); margin-top: -4px; }
+.sheet-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; }
+.sheet-actions .btn-primary { margin-left: auto; }
+
