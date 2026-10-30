@@ -12,6 +12,7 @@ export default function BookSheet({ open, entry, initialStatus = 'want', onClose
   const [genre, setGenre] = useState('');
   const [status, setStatus] = useState('want');
   const [favorite, setFavorite] = useState(false);
+  const [partial, setPartial] = useState(false);
   const [logIt, setLogIt] = useState(false);
   const [rating, setRating] = useState(0);
   const [finishedOn, setFinishedOn] = useState(localDate());
@@ -43,7 +44,7 @@ export default function BookSheet({ open, entry, initialStatus = 'want', onClose
     if (!open) return;
     setTitle(entry?.work?.title || ''); setAuthor(entry?.work?.author || '');
     setGenre(entry?.genre || entry?.work?.genre || '');
-    setStatus(entry?.status || initialStatus); setFavorite(!!entry?.favorite);
+    setStatus(entry?.status || initialStatus); setFavorite(!!entry?.favorite); setPartial(!!entry?.partial);
     setLogIt(false); setRating(0); setFinishedOn(localDate()); setReview('');
     setError(''); setBusy(false); setConfirmRemove(false); setChangeGenre(false); setSugg([]); setPicked(false);
   }, [open, entry, initialStatus]);
@@ -60,7 +61,7 @@ export default function BookSheet({ open, entry, initialStatus = 'want', onClose
     if (!editing) {
       res = await addBook({ title, author, status, rating, finishedOn, review });
     } else {
-      const fields = { status: logIt ? 'read' : status, favorite };
+      const fields = { status: logIt ? 'read' : status, favorite, partial: logIt ? false : partial };
       if (changeGenre) fields.genre = genre || null;
       res = await updateEntry(entry.id, fields);
       if (!res.error && logIt) {
@@ -152,6 +153,11 @@ export default function BookSheet({ open, entry, initialStatus = 'want', onClose
         {editing && (
           <label className="check-row">
             <input type="checkbox" checked={favorite} onChange={(e) => setFavorite(e.target.checked)} /> Favorite
+          </label>
+        )}
+        {editing && status === 'reading' && !logIt && (
+          <label className="check-row">
+            <input type="checkbox" checked={partial} onChange={(e) => setPartial(e.target.checked)} /> Only reading parts
           </label>
         )}
 
