@@ -22,6 +22,7 @@ export default function BookSheet({ open, entry, initialStatus = 'want', onClose
   const [changeGenre, setChangeGenre] = useState(false);
   const [sugg, setSugg] = useState([]);
   const [picked, setPicked] = useState(false);
+  const [searching, setSearching] = useState(false);
   const timer = useRef(null);
 
   // Beim Tippen des Titels Open Library fragen (kurz verzögert).
@@ -29,7 +30,12 @@ export default function BookSheet({ open, entry, initialStatus = 'want', onClose
     if (entry || picked) return undefined;
     clearTimeout(timer.current);
     const ctrl = new AbortController();
-    timer.current = setTimeout(async () => setSugg(await suggestBooks(title, ctrl.signal)), 350);
+    timer.current = setTimeout(async () => {
+      if (title.trim().length < 3) { setSugg([]); setSearching(false); return; }
+      setSearching(true);
+      const found = await suggestBooks(title, ctrl.signal);
+      if (!ctrl.signal.aborted) { setSugg(found); setSearching(false); }
+    }, 350);
     return () => { clearTimeout(timer.current); ctrl.abort(); };
   }, [title, entry, picked]);
 
@@ -91,6 +97,7 @@ export default function BookSheet({ open, entry, initialStatus = 'want', onClose
             <div className="form-group">
               <label className="form-label" htmlFor="bs-title">Title</label>
               <input id="bs-title" value={title} onChange={(e) => { setTitle(e.target.value); setPicked(false); }} required maxLength={300} autoComplete="off" />
+              {searching && !picked && sugg.length === 0 && <p className="hint sugg-wait">Looking up books…</p>}
               {sugg.length > 0 && !picked && (
                 <ul className="sugg" role="listbox" aria-label="Suggestions">
                   {sugg.map((b) => (
