@@ -67,32 +67,63 @@ export function genreFromSubjects(subjects) {
   return (count.literature || 0) > (count.nonfiction || 0) ? 'literature' : 'nonfiction';
 }
 
-// Fragt Open Library nach Themen, Seitenzahl und Cover. Übernommen wird nur
-// ein Treffer, dessen Titel und Autor zum eingegebenen Buch passen.
+// Fragt Open Library nach Themen, Seitenzahl und Cover. Gesucht wird über alle
+// Ausgaben, damit auch deutsche Titel gefunden werden (z. B. „Welten“ als
+// Ausgabe von „Transition“). Übernommen wird ein Treffer nur, wenn der Titel
+// des Werks oder einer Ausgabe passt und – falls angegeben – der Autor.
+const sameTitle = (a, b) => a === b || a.startsWith(b + ' ') || b.startsWith(a + ' ');
+function authorMatches(names, author) {
+  if (!author) return true;
+  const want = normalizeAuthor(author).split(' ').filter((w) => w.length > 1);
+  return (names || []).some((n) => {
+    const have = normalizeAuthor(n).split(' ');
+    return want.filter((w) => have.includes(w)).length >= Math.min(1, want.length);
+  });
+}
+const coverUrl = (id) => (id ? `https://covers.openlibrary.org/b/id/${id}-M.jpg` : null);
+
 export async function lookupOpenLibrary(title, author) {
   try {
-    const url = 'https://openlibrary.org/search.json?limit=5&fields=title,author_name,subject,number_of_pages_median,cover_i'
-      + '&title=' + encodeURIComponent(title) + (author ? '&author=' + encodeURIComponent(author) : '');
+    const url = 'https://openlibrary.org/search.json?limit=8'
+      + '&fields=key,title,author_name,subject,number_of_pages_median,cover_i,editions,editions.key,editions.title,editions.cover_i,editions.number_of_pages'
+      + '&q=' + encodeURIComponent(`${title} ${author || ''}`.trim());
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 6000);
+    const timer = setTimeout(() => ctrl.abort(), 7000);
     const res = await fetch(url, { signal: ctrl.signal });
     clearTimeout(timer);
     if (!res.ok) return null;
     const { docs = [] } = await res.json();
     const want = normalizeKey(title);
-    const doc = docs.find((d) => {
-      const t = normalizeKey(d.title);
-      return t === want || t.startsWith(want + ' ') || want.startsWith(t + ' ');
-    });
-    if (!doc) return null;
-    return {
-      genre: genreFromSubjects(doc.subject),
-      pages: doc.number_of_pages_median || null,
-      cover_url: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : null,
-    };
+    for (const d of docs) {
+      if (!authorMatches(d.author_name, author)) continue;
+      const ed = (d.editions?.docs || []).find((e) => sameTitle(normalizeKey(e.title), want));
+      if (!ed && !sameTitle(normalizeKey(d.title), want)) continue;
+      return {
+        genre: genreFromSubjects(d.subject),
+        pages: ed?.number_of_pages || d.number_of_pages_median || null,
+        cover_url: coverUrl(ed?.cover_i) || coverUrl(d.cover_i),
+      };
+    }
+    return null;
   } catch {
     return null; // Open Library nicht erreichbar: Buch trotzdem anlegen
   }
+}
+
+// Ergänzt bei eigenen Werken fehlendes Cover, Genre oder Seitenzahl.
+// Die Leseregel erlaubt Änderungen nur dem Ersteller; bei fremden Werken
+// schlägt das still fehl, und das ist in Ordnung.
+export async function enrichWork(work) {
+  if (!work || (work.cover_url && work.genre && work.pages)) return null;
+  const ol = await lookupOpenLibrary(work.title, work.author);
+  if (!ol) return null;
+  const patch = {};
+  if (!work.cover_url && ol.cover_url) patch.cover_url = ol.cover_url;
+  if (!work.genre && ol.genre) patch.genre = ol.genre;
+  if (!work.pages && ol.pages) patch.pages = ol.pages;
+  if (!Object.keys(patch).length) return null;
+  const { error } = await supabase.from('works').update(patch).eq('id', work.id);
+  return error ? null : patch;
 }
 
 // ---------- Lesen ----------
@@ -128,6 +159,17 @@ export async function loadLibrary() {
     days: days.get(e.id) || {},
   }));
   return { items };
+}
+
+// Für bis zu fünf Bücher ohne Cover/Genre Open Library befragen (im Hintergrund).
+export async function enrichMissing(items) {
+  const todo = items.map((i) => i.work).filter((w) => w && (!w.cover_url || !w.genre)).slice(0, 5);
+  const out = {};
+  for (const w of todo) {
+    const patch = await enrichWork(w);
+    if (patch) out[w.id] = patch;
+  }
+  return out;
 }
 
 // ---------- Schreiben ----------
@@ -186,6 +228,15 @@ export async function logRead({ workId, rating, finishedOn, review, isReread = f
   });
 }
 
+export async function updateLog(id, { rating, finishedOn, review }) {
+  return supabase.from('logs').update({
+    rating: rating || null,
+    finished_on: finishedOn,
+    review: review?.trim() || null,
+  }).eq('id', id);
+}
+export const deleteLog = (id) => supabase.from('logs').delete().eq('id', id);
+
 export async function setReadingDay(entryId, day, on) {
   if (on) return supabase.from('reading_days').insert({ entry_id: entryId, read_on: day });
   return supabase.from('reading_days').delete().eq('entry_id', entryId).eq('read_on', day);
@@ -194,6 +245,69 @@ export async function setReadingDay(entryId, day, on) {
 export async function setPageReached(entryId, day, page) {
   return supabase.from('reading_days').update({ page_reached: page || null }).eq('entry_id', entryId).eq('read_on', day);
 }
+
+// ---------- Buchseite ----------
+
+export async function loadBook(entryId, myId) {
+  const { data: entry, error } = await supabase.from('entries')
+    .select('id, status, favorite, genre, created_at, work:works(id, title, author, cover_url, pages, genre, work_key, published_year)')
+    .eq('id', entryId).single();
+  if (error) return { error };
+  const key = entry.work.work_key;
+  const [days, logs, quotes, notes, pub] = await Promise.all([
+    supabase.from('reading_days').select('read_on, page_reached').eq('entry_id', entryId).order('read_on'),
+    supabase.from('logs').select('id, started_on, finished_on, rating, review, is_reread, created_at, work:works!inner(work_key)')
+      .eq('work.work_key', key).order('finished_on', { ascending: false }),
+    supabase.from('quotes').select('id, page, body, created_at, work:works!inner(work_key), saves:quote_saves(thought, user_id)')
+      .eq('work.work_key', key).eq('user_id', myId).order('page', { ascending: true, nullsFirst: false }),
+    supabase.from('notes').select('id, page, body, created_at, work:works!inner(work_key)')
+      .eq('work.work_key', key).order('page', { ascending: true, nullsFirst: true }),
+    supabase.from('public_logs').select('id, user_id, rating, review, is_reread, posted_at').eq('work_key', key)
+      .order('posted_at', { ascending: false }),
+  ]);
+  const err = days.error || logs.error || quotes.error || notes.error || pub.error;
+  if (err) return { error: err };
+
+  // Durchschnitt: je Person zählt die jüngste Bewertung.
+  const latest = new Map();
+  for (const l of pub.data || []) if (l.rating && !latest.has(l.user_id)) latest.set(l.user_id, Number(l.rating));
+  const ratings = [...latest.values()];
+  const avg = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
+
+  const others = (pub.data || []).filter((l) => l.user_id !== myId && (l.review || l.rating));
+  let people = {};
+  if (others.length) {
+    const ids = [...new Set(others.map((o) => o.user_id))];
+    const { data: profs } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', ids);
+    people = Object.fromEntries((profs || []).map((p) => [p.id, p]));
+  }
+  return {
+    entry,
+    days: Object.fromEntries((days.data || []).map((d) => [d.read_on, d.page_reached])),
+    logs: logs.data || [],
+    quotes: (quotes.data || []).map((q) => ({ ...q, thought: (q.saves || []).find((x) => x.user_id === myId)?.thought || '' })),
+    notes: notes.data || [],
+    others: others.map((o) => ({ ...o, profile: people[o.user_id] || null })),
+    avg, ratingCount: ratings.length,
+  };
+}
+
+export async function addQuote({ workId, page, body, thought }) {
+  const { data, error } = await supabase.from('quotes')
+    .insert({ work_id: workId, page: page || null, body: body.trim() }).select('id').single();
+  if (error) return { error };
+  if (thought?.trim()) {
+    const { data: u } = await supabase.auth.getUser();
+    await supabase.from('quote_saves').update({ thought: thought.trim() }).eq('quote_id', data.id).eq('user_id', u.user.id);
+  }
+  return { id: data.id };
+}
+export const deleteQuote = (id) => supabase.from('quotes').delete().eq('id', id);
+
+export async function addNote({ workId, page, body }) {
+  return supabase.from('notes').insert({ work_id: workId, page: page || null, body: body.trim() });
+}
+export const deleteNote = (id) => supabase.from('notes').delete().eq('id', id);
 
 // ---------- Profil ----------
 
