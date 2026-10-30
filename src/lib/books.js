@@ -334,6 +334,44 @@ export async function addNote({ workId, page, body }) {
 }
 export const deleteNote = (id) => supabase.from('notes').delete().eq('id', id);
 
+// ---------- Explore ----------
+
+// Zuletzt bewertete Bücher aller Angemeldeten, je Buch (work_key) eine Zeile.
+export async function loadExplore(myId) {
+  const { data: pub, error } = await supabase.from('public_logs')
+    .select('work_id, work_key, user_id, rating, posted_at')
+    .not('rating', 'is', null)
+    .order('posted_at', { ascending: false })
+    .limit(300);
+  if (error) return { error };
+  const byKey = new Map();
+  for (const l of pub || []) {
+    if (!byKey.has(l.work_key)) byKey.set(l.work_key, { key: l.work_key, workId: l.work_id, last: l.posted_at, people: new Map() });
+    const g = byKey.get(l.work_key);
+    if (!g.people.has(l.user_id)) g.people.set(l.user_id, Number(l.rating)); // jüngste Bewertung je Person
+  }
+  const groups = [...byKey.values()].slice(0, 40);
+  const ids = groups.map((g) => g.workId);
+  const [worksRes, mineRes] = await Promise.all([
+    ids.length ? supabase.from('works').select('id, title, author, cover_url, work_key').in('id', ids) : { data: [] },
+    supabase.from('entries').select('id, work_key, status').eq('user_id', myId),
+  ]);
+  const works = Object.fromEntries((worksRes.data || []).map((w) => [w.id, w]));
+  const mine = Object.fromEntries((mineRes.data || []).map((e) => [e.work_key, e]));
+  return {
+    items: groups.map((g) => {
+      const r = [...g.people.values()];
+      return { ...g, work: works[g.workId], avg: r.reduce((a, b) => a + b, 0) / r.length, count: r.length, mine: mine[g.key] || null };
+    }).filter((x) => x.work),
+  };
+}
+
+export async function addToReadlist(workId) {
+  const { data, error } = await supabase.from('entries').insert({ work_id: workId, status: 'want' }).select('id').single();
+  if (error?.code === '23505') return { error: { message: 'Already in your library.' } };
+  return error ? { error } : { id: data.id };
+}
+
 // ---------- Profil ----------
 
 export async function uploadAvatar(userId, file) {
