@@ -1141,3 +1141,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .explore-open { background: none; border: 0; padding: 0; text-align: left; color: inherit; font: inherit; cursor: pointer; flex: 1; min-width: 0; }
 .explore-stars { color: var(--star); font-size: 12px; margin-top: 3px; }
 .muted-tag { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+
+/* Gelesene Teile */
+.parts { margin: 22px 0 6px; }
+.parts .section-label { display: flex; align-items: center; gap: 6px; }
+.parts-date { flex: 0 0 auto; width: auto; }
+.lib-sub { margin-top: 26px; }
