@@ -7,6 +7,7 @@ import Library from './pages/Library.jsx';
 import Explore from './pages/Explore.jsx';
 import Profile from './pages/Profile.jsx';
 import BookPage from './pages/BookPage.jsx';
+import WorkPage from './pages/WorkPage.jsx';
 import BookSheet from './components/BookSheet.jsx';
 import BottomNav from './components/BottomNav.jsx';
 
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="/explore" element={<Explore />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/book/:id" element={<BookPage reloadKey={reloadKey} onEdit={openEdit} />} />
+          <Route path="/work/:id" element={<WorkPage />} />
           <Route path="*" element={<Navigate to="/library" replace />} />
         </Routes>
       </main>

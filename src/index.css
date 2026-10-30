@@ -1133,3 +1133,11 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .sugg-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; background: none; border: 0; border-radius: 0; text-align: left; color: inherit; font-weight: 400; cursor: pointer; }
 .sugg-item:hover, .sugg-item:focus-visible { background: var(--bg-hover); }
 .sugg-wait { margin-top: 6px; }
+
+/* Sterne ohne Beiwerk; Details erst auf Tipp */
+.rating-sum { display: inline-flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-top: 6px; padding: 2px 0; background: none; border: 0; color: var(--text-muted); font-size: 13px; cursor: pointer; text-align: left; }
+.rating-sum .stars { color: var(--star); font-size: 15px; letter-spacing: 1px; }
+.rating-detail { font-size: 12px; }
+.explore-open { background: none; border: 0; padding: 0; text-align: left; color: inherit; font: inherit; cursor: pointer; flex: 1; min-width: 0; }
+.explore-stars { color: var(--star); font-size: 12px; margin-top: 3px; }
+.muted-tag { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
