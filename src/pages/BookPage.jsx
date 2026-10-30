@@ -7,6 +7,7 @@ import StarInput from '../components/StarInput.jsx';
 import BookCover from '../components/BookCover.jsx';
 import ReadingLog from '../components/ReadingLog.jsx';
 import Avatar from '../components/Avatar.jsx';
+import RatingSummary from '../components/RatingSummary.jsx';
 
 const LockIcon = () => (
   <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -57,9 +58,7 @@ export default function BookPage({ reloadKey, onEdit }) {
           <p className="bp-facts">
             {[genreLabel(genre), w.pages ? `${w.pages} pages` : null, statusLabel].filter(Boolean).join(' · ')}
           </p>
-          {avg != null && (
-            <p className="bp-avg"><span className="stars">{renderStars(avg)}</span> <span>{avg.toFixed(1)} · {ratingCount} {ratingCount === 1 ? 'rating' : 'ratings'}</span></p>
-          )}
+          <RatingSummary avg={avg} count={ratingCount} />
         </div>
       </header>
 

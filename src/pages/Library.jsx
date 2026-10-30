@@ -1,16 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
-import { loadLibrary, enrichMissing, surnameKey, renderStars, lastDays, localDate, setReadingDay, setPageReached } from '../lib/books.js';
+import { loadLibrary, enrichMissing, surnameKey, renderStars } from '../lib/books.js';
 import BookCover from '../components/BookCover.jsx';
 
 const TABS = [['read', 'Read'], ['reading', 'Reading'], ['want', 'Readlist']];
-const CHECK = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M5 12.5l4.5 4.5L19 7.5" />
-  </svg>
-);
-
 function readTab() {
   try { return localStorage.getItem('bookshelv-tab') || 'reading'; } catch { return 'reading'; }
 }
@@ -21,9 +14,6 @@ export default function Library({ reloadKey, onAdd }) {
   const [tab, setTab] = useState(readTab);
   const [items, setItems] = useState(null);
   const [error, setError] = useState('');
-  const [ask, setAsk] = useState(null); // { entryId, day }
-  const [page, setPage] = useState('');
-  const [open, setOpen] = useState(null); // aufgeklapptes Buch im Reiter Reading
 
   const load = async () => {
     const res = await loadLibrary();
@@ -46,32 +36,6 @@ export default function Library({ reloadKey, onAdd }) {
     return rows;
   }, [items, tab]);
 
-  const days = lastDays(5);
-
-  const toggleDay = async (item, d) => {
-    const key = localDate(d);
-    const on = !(key in item.days);
-    // Sofort anzeigen, danach speichern.
-    setItems((all) => all.map((x) => {
-      if (x.id !== item.id) return x;
-      const next = { ...x.days };
-      if (on) next[key] = null; else delete next[key];
-      return { ...x, days: next };
-    }));
-    const { error } = await setReadingDay(item.id, key, on);
-    if (error) { setError(error.message); load(); return; }
-    if (on) { setAsk({ entryId: item.id, day: key }); setPage(''); } else setAsk(null);
-  };
-
-  const savePage = async () => {
-    const n = parseInt(page, 10);
-    if (n > 0) {
-      await setPageReached(ask.entryId, ask.day, n);
-      setItems((all) => all.map((x) => (x.id === ask.entryId ? { ...x, days: { ...x.days, [ask.day]: n } } : x)));
-    }
-    setAsk(null);
-  };
-
   return (
     <div className="library">
       <header className="lib-head">
@@ -82,7 +46,7 @@ export default function Library({ reloadKey, onAdd }) {
       </header>
       <nav className="lib-tabs" aria-label="Library sections">
         {TABS.map(([k, label]) => (
-          <button key={k} type="button" className={`lib-tab${tab === k ? ' on' : ''}`} onClick={() => { setTab(k); setAsk(null); setOpen(null); }}>
+          <button key={k} type="button" className={`lib-tab${tab === k ? ' on' : ''}`} onClick={() => setTab(k)}>
             {label}
           </button>
         ))}
@@ -97,66 +61,12 @@ export default function Library({ reloadKey, onAdd }) {
           <p>{tab === 'read' ? 'Books you have finished appear here.' : tab === 'reading' ? 'Nothing on the go right now.' : 'Your readlist is empty.'}</p>
           <button type="button" className="btn-primary" onClick={onAdd}>Add a book</button>
         </div>
-      ) : tab === 'reading' ? (
-        <div className="lib-list">
-          {list.map((item) => {
-            const isOpen = open === item.id;
-            return (
-              <div key={item.id} className={`book-block${isOpen ? ' open' : ''}`}>
-                <button type="button" className="book-row" aria-expanded={isOpen}
-                  onClick={() => { setOpen(isOpen ? null : item.id); setAsk(null); }}>
-                  <span className="book-main">
-                    <BookCover url={item.work?.cover_url} title={item.work?.title} reading />
-                    <span className="book-text">
-                      <span className="book-title">{item.work?.title}</span>
-                      <span className="book-author">{item.work?.author}</span>
-                    </span>
-                  </span>
-                  <span className="book-right"><span className="chev" aria-hidden="true">{isOpen ? '–' : '+'}</span></span>
-                </button>
-                {isOpen && (
-                  <div className="track-panel">
-                    <div className="track-days">
-                      {days.map((d) => {
-                        const k = localDate(d); const on = k in item.days; const p = item.days[k];
-                        return (
-                          <div key={k} className="track-day">
-                            <span className="track-label">{format(d, 'EEE')}<br />{format(d, 'd')}</span>
-                            <button type="button" className={`day-check${on ? ' on' : ''}`} aria-pressed={on}
-                              aria-label={`${item.work?.title}, ${format(d, 'EEEE d MMMM')}`} onClick={() => toggleDay(item, d)}>
-                              {on && CHECK}
-                            </button>
-                            <span className="day-page">{on && p ? `p. ${p}` : ''}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {ask?.entryId === item.id ? (
-                      <div className="page-ask">
-                        <label htmlFor={`pg-${item.id}`}>Until page</label>
-                        <input id={`pg-${item.id}`} inputMode="numeric" placeholder="optional" value={page}
-                          onChange={(e) => setPage(e.target.value.replace(/\D/g, ''))}
-                          onKeyDown={(e) => e.key === 'Enter' && savePage()} autoFocus />
-                        <button type="button" className="btn-small" onClick={savePage}>Save</button>
-                        <button type="button" className="link-btn muted" onClick={() => setAsk(null)}>Skip</button>
-                      </div>
-                    ) : (
-                      <div className="track-foot">
-                        <button type="button" className="link-btn muted" onClick={() => openBook(item)}>Open book</button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
       ) : (
         <div className="lib-list">
           {list.map((item) => (
             <button key={item.id} type="button" className="book-row" onClick={() => openBook(item)}>
               <span className="book-main">
-                <BookCover url={item.work?.cover_url} title={item.work?.title} />
+                <BookCover url={item.work?.cover_url} title={item.work?.title} reading={tab === 'reading'} />
                 <span className="book-text">
                   <span className="book-title">{item.work?.title}</span>
                   <span className="book-author">{item.work?.author}</span>

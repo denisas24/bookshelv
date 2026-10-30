@@ -39,16 +39,17 @@ export default function Explore() {
         <div className="lib-list">
           {items.map((item) => (
             <div key={item.key} className="book-row explore-row">
-              <span className="book-main">
+              <button type="button" className="book-main explore-open"
+                onClick={() => navigate(item.mine ? `/book/${item.mine.id}` : `/work/${item.workId}`)}>
                 <BookCover url={item.work.cover_url} title={item.work.title} />
                 <span className="book-text">
                   <span className="book-title">{item.work.title}</span>
                   <span className="book-author">{item.work.author}</span>
-                  <span className="explore-score"><span className="stars">{renderStars(item.avg)}</span> {item.avg.toFixed(1)} · {item.count} {item.count === 1 ? 'rating' : 'ratings'}</span>
+                  <span className="stars explore-stars" aria-label={`${item.avg.toFixed(1)} of 5`}>{renderStars(item.avg)}</span>
                 </span>
-              </span>
+              </button>
               {item.mine
-                ? <button type="button" className="link-btn muted" onClick={() => navigate(`/book/${item.mine.id}`)}>In library</button>
+                ? <span className="muted-tag">In library</span>
                 : <button type="button" className="btn-small" onClick={() => add(item)}>+ Readlist</button>}
             </div>
           ))}
