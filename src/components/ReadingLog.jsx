@@ -8,7 +8,6 @@ const parse = (k) => { const [y, m, d] = k.split('-').map(Number); return new Da
 const WD = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
 export default function ReadingLog({ entryId, days, onChange }) {
-  const [editing, setEditing] = useState(false);
   const [ask, setAsk] = useState(null);
   const [page, setPage] = useState('');
   const calRef = useRef(null);
@@ -17,7 +16,10 @@ export default function ReadingLog({ entryId, days, onChange }) {
   const keys = Object.keys(days).sort();
 
   const months = useMemo(() => {
-    const first = keys.length ? startOfMonth(parse(keys[0])) : startOfMonth(today);
+    // Mindestens die letzten drei Monate zeigen, sonst ab dem ersten Lesetag.
+    const minStart = startOfMonth(addMonths(today, -2));
+    const firstRead = keys.length ? startOfMonth(parse(keys[0])) : minStart;
+    const first = isAfter(firstRead, minStart) ? minStart : firstRead;
     const out = [];
     for (let m = first; !isAfter(m, today); m = addMonths(m, 1)) {
       const n = keys.filter((k) => k.startsWith(format(m, 'yyyy-MM'))).length;
@@ -42,7 +44,6 @@ export default function ReadingLog({ entryId, days, onChange }) {
   const toggle = async (d) => {
     const k = localDate(d);
     if (isAfter(d, today)) return;
-    if (!editing && k !== todayKey) return;
     const on = !(k in days);
     const next = { ...days };
     if (on) next[k] = null; else delete next[k];
@@ -71,7 +72,8 @@ export default function ReadingLog({ entryId, days, onChange }) {
           <div className="rlog-months">
             {weeks.map((w, i) => {
               const first = w.find((d) => d.getDate() === 1);
-              return <span key={i}>{i === 0 ? format(w[0], 'MMM') : first ? format(first, 'MMM') : ''}</span>;
+              // Monatsname über der Woche, in der der Monat beginnt.
+              return <span key={i}>{first ? format(first, 'MMM') : i === 0 ? format(w[6], 'MMM') : ''}</span>;
             })}
           </div>
           <div className="rlog-grid">
@@ -99,10 +101,7 @@ export default function ReadingLog({ entryId, days, onChange }) {
           <button type="button" className="link-btn muted" onClick={() => setAsk(null)}>Skip</button>
         </div>
       ) : (
-        <div className="rlog-foot">
-          <span>{editing ? 'Tap any past day to add or remove it.' : 'Tap today to mark it.'}</span>
-          <button type="button" className="btn-small" onClick={() => setEditing((e) => !e)}>{editing ? 'Done' : 'Edit'}</button>
-        </div>
+        <div className="rlog-foot"><span>Tap a day to mark it or to take it back.</span></div>
       )}
     </section>
   );
