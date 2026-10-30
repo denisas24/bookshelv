@@ -136,31 +136,38 @@ export async function lookupOpenLibrary(title, author) {
 }
 
 // Vorschläge beim Tippen im Feld „Title“: Titel (auch deutsche Ausgaben),
-// Autor, Cover. Ohne Treffer oder offline: leere Liste.
+// Autor, Cover. Das letzte Wort darf unvollständig sein („zauberb“). Sortiert
+// nach Verbreitung, Titel, die mit der Eingabe beginnen, zuerst.
 export async function suggestBooks(query, signal) {
-  const q = (query || '').trim();
+  const q = (query || '').replace(/[():"*\[\]{}^~?\\]/g, ' ').trim();
   if (q.length < 3) return [];
   try {
-    const url = 'https://openlibrary.org/search.json?limit=8'
+    const url = 'https://openlibrary.org/search.json?limit=20&sort=editions'
       + '&fields=key,title,author_name,cover_i,editions,editions.key,editions.title,editions.cover_i'
-      + '&q=' + encodeURIComponent(q);
+      + '&q=' + encodeURIComponent(`title:(${q}*)`);
     const res = await fetch(url, { signal });
     if (!res.ok) return [];
     const { docs = [] } = await res.json();
-    const want = normalizeKey(q);
+    const want = baseNorm(q);
     const seen = new Set();
-    const out = [];
-    for (const d of docs) {
-      const ed = (d.editions?.docs || []).find((e) => normalizeKey(e.title).includes(want));
-      const title = ed && !normalizeKey(d.title).includes(want) ? ed.title : d.title;
+    const ranked = [];
+    docs.forEach((d, i) => {
+      const ed = (d.editions?.docs || [])[0];
+      const edT = ed ? baseNorm(ed.title) : '';
+      const wT = baseNorm(d.title);
+      const useEd = ed && (edT.startsWith(want) || (edT.includes(want) && !wT.includes(want)));
+      const title = useEd ? ed.title : d.title;
+      const t = baseNorm(title);
       const author = (d.author_name || [])[0] || '';
       const k = workKey(title, author);
-      if (seen.has(k)) continue;
+      if (!author || seen.has(k)) return;
       seen.add(k);
-      out.push({ title, author, cover_url: coverUrl(ed?.cover_i) || coverUrl(d.cover_i) });
-      if (out.length >= 6) break;
-    }
-    return out;
+      const score = t.startsWith(want) ? 0 : t.includes(want) ? 1 : 2;
+      ranked.push({ score, i, title, author, cover_url: coverUrl(useEd ? ed.cover_i : null) || coverUrl(d.cover_i) });
+    });
+    ranked.sort((x, y) => x.score - y.score || x.i - y.i);
+    const good = ranked.filter((x) => x.score < 2);
+    return (good.length ? good : ranked).slice(0, 6).map(({ title, author, cover_url }) => ({ title, author, cover_url }));
   } catch {
     return [];
   }
