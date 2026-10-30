@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import StarInput from './StarInput.jsx';
-import { GENRES, STATUSES, addBook, updateEntry, removeEntry, logRead, localDate, genreLabel } from '../lib/books.js';
+import { GENRES, STATUSES, addBook, updateEntry, removeEntry, logRead, localDate, genreLabel, suggestBooks } from '../lib/books.js';
+import BookCover from './BookCover.jsx';
 import { showToast } from '../lib/utils.js';
 
 // Hinzufügen (entry = null) oder Bearbeiten eines Bibliothekseintrags.
@@ -19,6 +20,18 @@ export default function BookSheet({ open, entry, initialStatus = 'want', onClose
   const [error, setError] = useState('');
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [changeGenre, setChangeGenre] = useState(false);
+  const [sugg, setSugg] = useState([]);
+  const [picked, setPicked] = useState(false);
+  const timer = useRef(null);
+
+  // Beim Tippen des Titels Open Library fragen (kurz verzögert).
+  useEffect(() => {
+    if (entry || picked) return undefined;
+    clearTimeout(timer.current);
+    const ctrl = new AbortController();
+    timer.current = setTimeout(async () => setSugg(await suggestBooks(title, ctrl.signal)), 350);
+    return () => { clearTimeout(timer.current); ctrl.abort(); };
+  }, [title, entry, picked]);
 
   useEffect(() => {
     if (!open) return;
@@ -26,7 +39,7 @@ export default function BookSheet({ open, entry, initialStatus = 'want', onClose
     setGenre(entry?.genre || entry?.work?.genre || '');
     setStatus(entry?.status || initialStatus); setFavorite(!!entry?.favorite);
     setLogIt(false); setRating(0); setFinishedOn(localDate()); setReview('');
-    setError(''); setBusy(false); setConfirmRemove(false); setChangeGenre(false);
+    setError(''); setBusy(false); setConfirmRemove(false); setChangeGenre(false); setSugg([]); setPicked(false);
   }, [open, entry, initialStatus]);
 
   if (!open) return null;
@@ -77,7 +90,22 @@ export default function BookSheet({ open, entry, initialStatus = 'want', onClose
           <>
             <div className="form-group">
               <label className="form-label" htmlFor="bs-title">Title</label>
-              <input id="bs-title" value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={300} />
+              <input id="bs-title" value={title} onChange={(e) => { setTitle(e.target.value); setPicked(false); }} required maxLength={300} autoComplete="off" />
+              {sugg.length > 0 && !picked && (
+                <ul className="sugg" role="listbox" aria-label="Suggestions">
+                  {sugg.map((b) => (
+                    <li key={b.title + b.author}>
+                      <button type="button" className="sugg-item" onClick={() => { setTitle(b.title); setAuthor(b.author); setPicked(true); setSugg([]); }}>
+                        <BookCover url={b.cover_url} title={b.title} />
+                        <span className="book-text">
+                          <span className="book-title">{b.title}</span>
+                          <span className="book-author">{b.author}</span>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
             <div className="form-group">
               <label className="form-label" htmlFor="bs-author">Author</label>
