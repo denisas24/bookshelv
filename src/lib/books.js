@@ -325,34 +325,51 @@ export async function loadBook(entryId, myId) {
       .eq('work.work_key', key).eq('user_id', myId).order('page', { ascending: true, nullsFirst: false }),
     supabase.from('notes').select('id, page, body, created_at, work:works!inner(work_key)')
       .eq('work.work_key', key).order('page', { ascending: true, nullsFirst: true }),
-    supabase.from('public_logs').select('id, user_id, rating, review, is_reread, posted_at').eq('work_key', key)
-      .order('posted_at', { ascending: false }),
+    loadPublic(key, myId),
   ]);
   const err = days.error || logs.error || quotes.error || notes.error || pub.error;
   if (err) return { error: err };
 
-  // Durchschnitt: je Person zählt die jüngste Bewertung.
-  const latest = new Map();
-  for (const l of pub.data || []) if (l.rating && !latest.has(l.user_id)) latest.set(l.user_id, Number(l.rating));
-  const ratings = [...latest.values()];
-  const avg = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
-
-  const others = (pub.data || []).filter((l) => l.user_id !== myId && (l.review || l.rating));
-  let people = {};
-  if (others.length) {
-    const ids = [...new Set(others.map((o) => o.user_id))];
-    const { data: profs } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', ids);
-    people = Object.fromEntries((profs || []).map((p) => [p.id, p]));
-  }
   return {
     entry,
     days: Object.fromEntries((days.data || []).map((d) => [d.read_on, d.page_reached])),
     logs: logs.data || [],
     quotes: (quotes.data || []).map((q) => ({ ...q, thought: (q.saves || []).find((x) => x.user_id === myId)?.thought || '' })),
     notes: notes.data || [],
-    others: others.map((o) => ({ ...o, profile: people[o.user_id] || null })),
-    avg, ratingCount: ratings.length,
+    others: pub.others, avg: pub.avg, ratingCount: pub.ratingCount,
   };
+}
+
+// Öffentliche Bewertungen eines Buchs: Durchschnitt (je Person die jüngste) und fremde Rezensionen.
+async function loadPublic(key, myId) {
+  const { data, error } = await supabase.from('public_logs').select('id, user_id, rating, review, is_reread, posted_at')
+    .eq('work_key', key).order('posted_at', { ascending: false });
+  if (error) return { error };
+  const latest = new Map();
+  for (const l of data || []) if (l.rating && !latest.has(l.user_id)) latest.set(l.user_id, Number(l.rating));
+  const ratings = [...latest.values()];
+  const avg = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
+  const others = (data || []).filter((l) => l.user_id !== myId && (l.review || l.rating));
+  let people = {};
+  if (others.length) {
+    const ids = [...new Set(others.map((o) => o.user_id))];
+    const { data: profs } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', ids);
+    people = Object.fromEntries((profs || []).map((p) => [p.id, p]));
+  }
+  return { avg, ratingCount: ratings.length, others: others.map((o) => ({ ...o, profile: people[o.user_id] || null })) };
+}
+
+// Buch ohne eigenen Eintrag (aus Explore): Werk, öffentliche Bewertungen, ggf. eigener Eintrag.
+export async function loadWork(workId, myId) {
+  const { data: work, error } = await supabase.from('works')
+    .select('id, title, author, cover_url, pages, genre, work_key, published_year').eq('id', workId).single();
+  if (error) return { error };
+  const [pub, mine] = await Promise.all([
+    loadPublic(work.work_key, myId),
+    supabase.from('entries').select('id').eq('user_id', myId).eq('work_key', work.work_key).maybeSingle(),
+  ]);
+  if (pub.error) return { error: pub.error };
+  return { work, ...pub, mineId: mine.data?.id || null };
 }
 
 export async function addQuote({ workId, page, body, thought }) {
