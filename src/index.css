@@ -1132,3 +1132,4 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .sugg li + li { border-top: 1px solid var(--border); }
 .sugg-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; background: none; border: 0; border-radius: 0; text-align: left; color: inherit; font-weight: 400; cursor: pointer; }
 .sugg-item:hover, .sugg-item:focus-visible { background: var(--bg-hover); }
+.sugg-wait { margin-top: 6px; }
