@@ -82,6 +82,28 @@ function authorMatches(names, author) {
 }
 const coverUrl = (id) => (id ? `https://covers.openlibrary.org/b/id/${id}-M.jpg` : null);
 
+async function genreFromAuthor(author) {
+  try {
+    const res = await fetch('https://openlibrary.org/search.json?limit=3&fields=subject&author=' + encodeURIComponent(author));
+    if (!res.ok) return null;
+    const { docs = [] } = await res.json();
+    return genreFromSubjects(docs.flatMap((x) => x.subject || []));
+  } catch { return null; }
+}
+
+// Nachname zum Sortieren: „Kafka, Franz“ → kafka; „Ursula K. Le Guin“ → le guin;
+// „Johann Wolfgang von Goethe“ → goethe (von/van/zu zählen nicht, wie im Deutschen üblich).
+const KEEP = new Set(['le', 'la', 'de', 'du', 'di', 'da', 'del']);
+export function surnameKey(author) {
+  const a = (author || '').trim();
+  if (!a) return '\uffff';
+  if (a.includes(',')) return baseNorm(a.split(',')[0].replace(/^(von|van|zu|vom)\s+/i, ''));
+  const parts = a.split(/\s+/);
+  let i = parts.length - 1;
+  while (i > 0 && KEEP.has(parts[i - 1].toLowerCase())) i -= 1;
+  return baseNorm(parts.slice(i).join(' ') + ' ' + parts.slice(0, i).join(' '));
+}
+
 export async function lookupOpenLibrary(title, author) {
   try {
     const url = 'https://openlibrary.org/search.json?limit=8'
@@ -98,8 +120,11 @@ export async function lookupOpenLibrary(title, author) {
       if (!authorMatches(d.author_name, author)) continue;
       const ed = (d.editions?.docs || []).find((e) => sameTitle(normalizeKey(e.title), want));
       if (!ed && !sameTitle(normalizeKey(d.title), want)) continue;
+      // Ohne Themen (oft bei rein deutschen Ausgaben) zählen die Themen der
+      // bekanntesten Werke derselben Person, z. B. Riggs → Fantasy.
+      const genre = genreFromSubjects(d.subject) || (author ? await genreFromAuthor(author) : null);
       return {
-        genre: genreFromSubjects(d.subject),
+        genre,
         pages: ed?.number_of_pages || d.number_of_pages_median || null,
         cover_url: coverUrl(ed?.cover_i) || coverUrl(d.cover_i),
       };
