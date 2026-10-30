@@ -48,9 +48,7 @@ export default function Explore() {
                   <span className="stars explore-stars" aria-label={`${item.avg.toFixed(1)} of 5`}>{renderStars(item.avg)}</span>
                 </span>
               </button>
-              {item.mine
-                ? <span className="muted-tag">In library</span>
-                : <button type="button" className="btn-small" onClick={() => add(item)}>+ Readlist</button>}
+              {!item.mine && <button type="button" className="btn-small" onClick={() => add(item)}>+ Readlist</button>}
             </div>
           ))}
         </div>
