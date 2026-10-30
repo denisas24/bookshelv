@@ -195,7 +195,7 @@ export async function loadLibrary() {
   const since = localDate(subDays(new Date(), 6));
   const [entriesRes, logsRes, daysRes] = await Promise.all([
     supabase.from('entries')
-      .select('id, status, favorite, genre, updated_at, work:works(id, title, author, cover_url, pages, genre, work_key)')
+      .select('id, status, favorite, partial, genre, updated_at, work:works(id, title, author, cover_url, pages, genre, work_key)')
       .order('updated_at', { ascending: false }),
     supabase.from('logs')
       .select('id, rating, finished_on, created_at, work:works(work_key)')
@@ -313,11 +313,11 @@ export async function setPageReached(entryId, day, page) {
 
 export async function loadBook(entryId, myId) {
   const { data: entry, error } = await supabase.from('entries')
-    .select('id, status, favorite, genre, created_at, work:works(id, title, author, cover_url, pages, genre, work_key, published_year)')
+    .select('id, status, favorite, partial, genre, created_at, work:works(id, title, author, cover_url, pages, genre, work_key, published_year)')
     .eq('id', entryId).single();
   if (error) return { error };
   const key = entry.work.work_key;
-  const [days, logs, quotes, notes, pub] = await Promise.all([
+  const [days, logs, quotes, notes, pub, parts] = await Promise.all([
     supabase.from('reading_days').select('read_on, page_reached').eq('entry_id', entryId).order('read_on'),
     supabase.from('logs').select('id, started_on, finished_on, rating, review, is_reread, created_at, work:works!inner(work_key)')
       .eq('work.work_key', key).order('finished_on', { ascending: false }),
@@ -326,8 +326,10 @@ export async function loadBook(entryId, myId) {
     supabase.from('notes').select('id, page, body, created_at, work:works!inner(work_key)')
       .eq('work.work_key', key).order('page', { ascending: true, nullsFirst: true }),
     loadPublic(key, myId),
+    supabase.from('read_parts').select('id, label, read_on, created_at').eq('entry_id', entryId)
+      .order('read_on', { ascending: false }).order('created_at', { ascending: false }),
   ]);
-  const err = days.error || logs.error || quotes.error || notes.error || pub.error;
+  const err = days.error || logs.error || quotes.error || notes.error || pub.error || parts.error;
   if (err) return { error: err };
 
   return {
@@ -337,6 +339,7 @@ export async function loadBook(entryId, myId) {
     quotes: (quotes.data || []).map((q) => ({ ...q, thought: (q.saves || []).find((x) => x.user_id === myId)?.thought || '' })),
     notes: notes.data || [],
     others: pub.others, avg: pub.avg, ratingCount: pub.ratingCount,
+    parts: parts.data || [],
   };
 }
 
@@ -388,6 +391,15 @@ export async function addNote({ workId, page, body }) {
   return supabase.from('notes').insert({ work_id: workId, page: page || null, body: body.trim() });
 }
 export const deleteNote = (id) => supabase.from('notes').delete().eq('id', id);
+
+// Teilweise gelesen: privat, ohne Sterne. Der erste Teil ordnet das Buch unter „Parts“ ein.
+export async function addPart({ entryId, label, readOn, markPartial }) {
+  const { error } = await supabase.from('read_parts').insert({ entry_id: entryId, label: label.trim(), read_on: readOn });
+  if (error) return { error };
+  if (markPartial) return supabase.from('entries').update({ partial: true }).eq('id', entryId);
+  return {};
+}
+export const deletePart = (id) => supabase.from('read_parts').delete().eq('id', id);
 
 // ---------- Explore ----------
 
