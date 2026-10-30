@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { loadLibrary, enrichMissing, renderStars, lastDays, localDate, setReadingDay, setPageReached } from '../lib/books.js';
+import { loadLibrary, enrichMissing, surnameKey, renderStars, lastDays, localDate, setReadingDay, setPageReached } from '../lib/books.js';
 import BookCover from '../components/BookCover.jsx';
 
 const TABS = [['read', 'Read'], ['reading', 'Reading'], ['want', 'Readlist']];
@@ -39,8 +39,10 @@ export default function Library({ reloadKey, onAdd }) {
   useEffect(() => { try { localStorage.setItem('bookshelv-tab', tab); } catch { /* egal */ } }, [tab]);
 
   const list = useMemo(() => {
+    // Alphabetisch nach Nachname der Autorin oder des Autors, dann nach Titel.
     const rows = (items || []).filter((i) => i.status === tab);
-    if (tab === 'read') rows.sort((a, b) => (b.log?.finished_on || '').localeCompare(a.log?.finished_on || ''));
+    rows.sort((a, b) => surnameKey(a.work?.author).localeCompare(surnameKey(b.work?.author))
+      || (a.work?.title || '').localeCompare(b.work?.title || ''));
     return rows;
   }, [items, tab]);
 
