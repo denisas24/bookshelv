@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useAuth } from '../lib/auth.jsx';
-import { loadBook, enrichWork, genreLabel, renderStars, addQuote, deleteQuote, addNote, deleteNote, updateLog, deleteLog, localDate, STATUSES } from '../lib/books.js';
+import { loadBook, enrichWork, genreLabel, renderStars, addQuote, deleteQuote, addNote, deleteNote, updateLog, deleteLog, localDate, STATUSES, addPart, deletePart } from '../lib/books.js';
 import StarInput from '../components/StarInput.jsx';
 import BookCover from '../components/BookCover.jsx';
 import ReadingLog from '../components/ReadingLog.jsx';
@@ -37,7 +37,7 @@ export default function BookPage({ reloadKey, onEdit }) {
   if (error) return <div className="library"><div className="auth-error">{error}</div></div>;
   if (!data) return <div className="library"><div className="book-row skeleton-row" /></div>;
 
-  const { entry, days, logs, quotes, notes, others, avg, ratingCount } = data;
+  const { entry, days, logs, quotes, notes, others, avg, ratingCount, parts } = data;
   const w = entry.work;
   const genre = entry.genre || w.genre;
   const statusLabel = (STATUSES.find(([k]) => k === entry.status) || [])[1];
@@ -64,6 +64,10 @@ export default function BookPage({ reloadKey, onEdit }) {
 
       {showLog && (
         <ReadingLog entryId={entry.id} days={days} onChange={(next) => setData((d) => ({ ...d, days: next }))} />
+      )}
+
+      {(entry.status === 'reading' || parts.length > 0) && (
+        <PartsPanel entry={entry} parts={parts} reload={load} />
       )}
 
       <nav className="bp-tabs" aria-label="Book sections">
@@ -158,6 +162,44 @@ function QuotesPanel({ workId, quotes, reload }) {
         ))}
       </ul>
     </div>
+  );
+}
+
+// Gelesene Teile (Kapitel, Seitenbereiche). Privat, ohne Sterne.
+function PartsPanel({ entry, parts, reload }) {
+  const [label, setLabel] = useState('');
+  const [readOn, setReadOn] = useState(localDate());
+  const [busy, setBusy] = useState(false); const [err, setErr] = useState('');
+  const save = async (e) => {
+    e.preventDefault(); setBusy(true); setErr('');
+    const { error } = await addPart({ entryId: entry.id, label, readOn, markPartial: !entry.partial && entry.status === 'reading' });
+    setBusy(false);
+    if (error) { setErr(error.message); return; }
+    setLabel(''); setReadOn(localDate()); reload();
+  };
+  return (
+    <section className="parts">
+      <h2 className="section-label">Parts read <LockIcon /></h2>
+      <form className="mini-form" onSubmit={save}>
+        {err && <div className="auth-error">{err}</div>}
+        <div className="mini-row">
+          <input placeholder="e.g. Ch. 3 or p. 40–85" value={label} onChange={(e) => setLabel(e.target.value)} maxLength={200} required aria-label="Part" />
+          <input type="date" value={readOn} max={localDate()} onChange={(e) => setReadOn(e.target.value)} required aria-label="Read on" className="parts-date" />
+          <button type="submit" className="btn-primary" disabled={busy}>Add</button>
+        </div>
+      </form>
+      {parts.length > 0 && (
+        <ul className="note-list">
+          {parts.map((p) => (
+            <li key={p.id} className="note-item">
+              <span className="note-page">{format(parse(p.read_on), 'd MMM yyyy')}</span>
+              <p className="note-text">{p.label}</p>
+              <button type="button" className="link-btn muted" onClick={async () => { await deletePart(p.id); reload(); }}>Delete</button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

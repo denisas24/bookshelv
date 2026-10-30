@@ -61,9 +61,28 @@ export default function Library({ reloadKey, onAdd }) {
           <p>{tab === 'read' ? 'Books you have finished appear here.' : tab === 'reading' ? 'Nothing on the go right now.' : 'Your readlist is empty.'}</p>
           <button type="button" className="btn-primary" onClick={onAdd}>Add a book</button>
         </div>
+      ) : tab === 'reading' ? (
+        <>
+          <BookList items={list.filter((i) => !i.partial)} tab={tab} openBook={openBook} />
+          {list.some((i) => i.partial) && (
+            <>
+              <h2 className="section-label lib-sub">Parts</h2>
+              <BookList items={list.filter((i) => i.partial)} tab={tab} openBook={openBook} />
+            </>
+          )}
+        </>
       ) : (
+        <BookList items={list} tab={tab} openBook={openBook} />
+      )}
+    </div>
+  );
+}
+
+function BookList({ items, tab, openBook }) {
+  if (!items.length) return null;
+  return (
         <div className="lib-list">
-          {list.map((item) => (
+          {items.map((item) => (
             <button key={item.id} type="button" className="book-row" onClick={() => openBook(item)}>
               <span className="book-main">
                 <BookCover url={item.work?.cover_url} title={item.work?.title} reading={tab === 'reading'} />
@@ -79,7 +98,5 @@ export default function Library({ reloadKey, onAdd }) {
             </button>
           ))}
         </div>
-      )}
-    </div>
   );
 }
