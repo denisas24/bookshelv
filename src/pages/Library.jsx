@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { loadLibrary, renderStars, lastDays, localDate, setReadingDay, setPageReached } from '../lib/books.js';
+import { loadLibrary, enrichMissing, renderStars, lastDays, localDate, setReadingDay, setPageReached } from '../lib/books.js';
 import BookCover from '../components/BookCover.jsx';
 
 const TABS = [['read', 'Read'], ['reading', 'Reading'], ['want', 'Readlist']];
@@ -14,7 +15,9 @@ function readTab() {
   try { return localStorage.getItem('bookshelv-tab') || 'reading'; } catch { return 'reading'; }
 }
 
-export default function Library({ reloadKey, onEdit, onAdd }) {
+export default function Library({ reloadKey, onAdd }) {
+  const navigate = useNavigate();
+  const openBook = (item) => navigate(`/book/${item.id}`);
   const [tab, setTab] = useState(readTab);
   const [items, setItems] = useState(null);
   const [error, setError] = useState('');
@@ -26,6 +29,11 @@ export default function Library({ reloadKey, onEdit, onAdd }) {
     const res = await loadLibrary();
     if (res.error) { setError(res.error.message); setItems([]); return; }
     setError(''); setItems(res.items);
+    // Fehlende Cover und Genres im Hintergrund nachtragen.
+    const patches = await enrichMissing(res.items);
+    if (Object.keys(patches).length) {
+      setItems((all) => all.map((x) => (patches[x.work?.id] ? { ...x, work: { ...x.work, ...patches[x.work.id] } } : x)));
+    }
   };
   useEffect(() => { load(); }, [reloadKey]);
   useEffect(() => { try { localStorage.setItem('bookshelv-tab', tab); } catch { /* egal */ } }, [tab]);
@@ -129,7 +137,7 @@ export default function Library({ reloadKey, onEdit, onAdd }) {
                       </div>
                     ) : (
                       <div className="track-foot">
-                        <button type="button" className="link-btn muted" onClick={() => onEdit(item)}>Edit book</button>
+                        <button type="button" className="link-btn muted" onClick={() => openBook(item)}>Open book</button>
                       </div>
                     )}
                   </div>
@@ -141,7 +149,7 @@ export default function Library({ reloadKey, onEdit, onAdd }) {
       ) : (
         <div className="lib-list">
           {list.map((item) => (
-            <button key={item.id} type="button" className="book-row" onClick={() => onEdit(item)}>
+            <button key={item.id} type="button" className="book-row" onClick={() => openBook(item)}>
               <span className="book-main">
                 <BookCover url={item.work?.cover_url} title={item.work?.title} />
                 <span className="book-text">
