@@ -1147,3 +1147,4 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .parts .section-label { display: flex; align-items: center; gap: 6px; }
 .parts-date { flex: 0 0 auto; width: auto; }
 .lib-sub { margin-top: 26px; }
+.parts .mini-row input:first-child { flex: 1 1 auto; min-width: 0; width: auto; }
