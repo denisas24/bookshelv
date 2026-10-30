@@ -4,7 +4,7 @@ import { useAuth } from './lib/auth.jsx';
 import AuthPage from './pages/AuthPage.jsx';
 import ResetPassword from './pages/ResetPassword.jsx';
 import Library from './pages/Library.jsx';
-import Soon from './pages/Soon.jsx';
+import Explore from './pages/Explore.jsx';
 import Profile from './pages/Profile.jsx';
 import BookPage from './pages/BookPage.jsx';
 import BookSheet from './components/BookSheet.jsx';
@@ -42,13 +42,13 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/library" replace />} />
           <Route path="/library" element={<Library reloadKey={reloadKey} onAdd={openAdd} />} />
-          <Route path="/explore" element={<Soon title="Explore" text="Search and discover books. Coming soon." />} />
+          <Route path="/explore" element={<Explore />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/book/:id" element={<BookPage reloadKey={reloadKey} onEdit={openEdit} />} />
           <Route path="*" element={<Navigate to="/library" replace />} />
         </Routes>
       </main>
-      <BottomNav onAdd={() => { if (location.pathname !== '/library') navigate('/library'); openAdd(); }} />
+      <BottomNav />
       <BookSheet open={sheet.open} entry={sheet.entry} initialStatus={sheet.status} onClose={() => setSheet({ open: false, entry: null })} onSaved={() => setReloadKey((k) => k + 1)} onRemoved={() => navigate('/library')} />
     </div>
   );
