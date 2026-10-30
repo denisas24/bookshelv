@@ -4,7 +4,7 @@ import { GENRES, STATUSES, addBook, updateEntry, removeEntry, logRead, localDate
 import { showToast } from '../lib/utils.js';
 
 // Hinzufügen (entry = null) oder Bearbeiten eines Bibliothekseintrags.
-export default function BookSheet({ open, entry, initialStatus = 'want', onClose, onSaved }) {
+export default function BookSheet({ open, entry, initialStatus = 'want', onClose, onSaved, onRemoved }) {
   const editing = !!entry;
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
@@ -60,7 +60,7 @@ export default function BookSheet({ open, entry, initialStatus = 'want', onClose
     setBusy(false);
     if (error) { setError(error.message); return; }
     showToast('Removed from your library');
-    onSaved(); onClose();
+    onSaved(); onClose(); onRemoved?.();
   };
 
   return (
