@@ -76,6 +76,9 @@ export default function Library({ reloadKey, onAdd }) {
     <div className="library">
       <header className="lib-head">
         <h1 className="lib-logo">Bookshelv</h1>
+        <button type="button" className="icon-btn" aria-label="Add book" title="Add book" onClick={onAdd}>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+        </button>
       </header>
       <nav className="lib-tabs" aria-label="Library sections">
         {TABS.map(([k, label]) => (
