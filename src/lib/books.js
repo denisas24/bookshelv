@@ -135,6 +135,37 @@ export async function lookupOpenLibrary(title, author) {
   }
 }
 
+// Vorschläge beim Tippen im Feld „Title“: Titel (auch deutsche Ausgaben),
+// Autor, Cover. Ohne Treffer oder offline: leere Liste.
+export async function suggestBooks(query, signal) {
+  const q = (query || '').trim();
+  if (q.length < 3) return [];
+  try {
+    const url = 'https://openlibrary.org/search.json?limit=8'
+      + '&fields=key,title,author_name,cover_i,editions,editions.key,editions.title,editions.cover_i'
+      + '&q=' + encodeURIComponent(q);
+    const res = await fetch(url, { signal });
+    if (!res.ok) return [];
+    const { docs = [] } = await res.json();
+    const want = normalizeKey(q);
+    const seen = new Set();
+    const out = [];
+    for (const d of docs) {
+      const ed = (d.editions?.docs || []).find((e) => normalizeKey(e.title).includes(want));
+      const title = ed && !normalizeKey(d.title).includes(want) ? ed.title : d.title;
+      const author = (d.author_name || [])[0] || '';
+      const k = workKey(title, author);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push({ title, author, cover_url: coverUrl(ed?.cover_i) || coverUrl(d.cover_i) });
+      if (out.length >= 6) break;
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 // Ergänzt bei eigenen Werken fehlendes Cover, Genre oder Seitenzahl.
 // Die Leseregel erlaubt Änderungen nur dem Ersteller; bei fremden Werken
 // schlägt das still fehl, und das ist in Ordnung.
@@ -333,44 +364,6 @@ export async function addNote({ workId, page, body }) {
   return supabase.from('notes').insert({ work_id: workId, page: page || null, body: body.trim() });
 }
 export const deleteNote = (id) => supabase.from('notes').delete().eq('id', id);
-
-// ---------- Explore ----------
-
-// Zuletzt bewertete Bücher aller Angemeldeten, je Buch (work_key) eine Zeile.
-export async function loadExplore(myId) {
-  const { data: pub, error } = await supabase.from('public_logs')
-    .select('work_id, work_key, user_id, rating, posted_at')
-    .not('rating', 'is', null)
-    .order('posted_at', { ascending: false })
-    .limit(300);
-  if (error) return { error };
-  const byKey = new Map();
-  for (const l of pub || []) {
-    if (!byKey.has(l.work_key)) byKey.set(l.work_key, { key: l.work_key, workId: l.work_id, last: l.posted_at, people: new Map() });
-    const g = byKey.get(l.work_key);
-    if (!g.people.has(l.user_id)) g.people.set(l.user_id, Number(l.rating)); // jüngste Bewertung je Person
-  }
-  const groups = [...byKey.values()].slice(0, 40);
-  const ids = groups.map((g) => g.workId);
-  const [worksRes, mineRes] = await Promise.all([
-    ids.length ? supabase.from('works').select('id, title, author, cover_url, work_key').in('id', ids) : { data: [] },
-    supabase.from('entries').select('id, work_key, status').eq('user_id', myId),
-  ]);
-  const works = Object.fromEntries((worksRes.data || []).map((w) => [w.id, w]));
-  const mine = Object.fromEntries((mineRes.data || []).map((e) => [e.work_key, e]));
-  return {
-    items: groups.map((g) => {
-      const r = [...g.people.values()];
-      return { ...g, work: works[g.workId], avg: r.reduce((a, b) => a + b, 0) / r.length, count: r.length, mine: mine[g.key] || null };
-    }).filter((x) => x.work),
-  };
-}
-
-export async function addToReadlist(workId) {
-  const { data, error } = await supabase.from('entries').insert({ work_id: workId, status: 'want' }).select('id').single();
-  if (error?.code === '23505') return { error: { message: 'Already in your library.' } };
-  return error ? { error } : { id: data.id };
-}
 
 // ---------- Profil ----------
 
