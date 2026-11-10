@@ -152,7 +152,7 @@ function QuotesPanel({ workId, quotes, reload }) {
       <ul className="quote-list">
         {quotes.map((q) => (
           <li key={q.id} className="quote-item">
-            <blockquote>{q.body}</blockquote>
+            <blockquote>{'\u201C'}{q.body}{'\u201D'}</blockquote>
             {q.thought && <p className="quote-thought">{q.thought}</p>}
             <p className="quote-src">
               {q.page ? `p. ${q.page}` : 'No page'}
