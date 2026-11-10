@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { loadLibrary, enrichMissing, surnameKey, renderStars } from '../lib/books.js';
 import BookCover from '../components/BookCover.jsx';
 
-const TABS = [['read', 'Read'], ['reading', 'Reading'], ['want', 'Readlist']];
+// „Reading“ steht seit 10.11.2026 auf der Startseite, die Bibliothek führt nur noch Read und Readlist.
+const TABS = [['read', 'Read'], ['want', 'Readlist']];
 function readTab() {
-  try { return localStorage.getItem('bookshelv-tab') || 'reading'; } catch { return 'reading'; }
+  try { const t = localStorage.getItem('bookshelv-tab'); return t === 'want' ? 'want' : 'read'; } catch { return 'read'; }
 }
 
 export default function Library({ reloadKey, onAdd }) {
@@ -58,19 +59,9 @@ export default function Library({ reloadKey, onAdd }) {
         <div className="lib-list">{[0, 1, 2].map((i) => <div key={i} className="book-row skeleton-row" />)}</div>
       ) : list.length === 0 ? (
         <div className="lib-empty">
-          <p>{tab === 'read' ? 'Books you have finished appear here.' : tab === 'reading' ? 'Nothing on the go right now.' : 'Your readlist is empty.'}</p>
+          <p>{tab === 'read' ? 'Books you have finished appear here.' : 'Your readlist is empty.'}</p>
           <button type="button" className="btn-primary" onClick={onAdd}>Add a book</button>
         </div>
-      ) : tab === 'reading' ? (
-        <>
-          <BookList items={list.filter((i) => !i.partial)} tab={tab} openBook={openBook} />
-          {list.some((i) => i.partial) && (
-            <>
-              <h2 className="section-label lib-sub">Parts</h2>
-              <BookList items={list.filter((i) => i.partial)} tab={tab} openBook={openBook} />
-            </>
-          )}
-        </>
       ) : (
         <BookList items={list} tab={tab} openBook={openBook} />
       )}
