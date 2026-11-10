@@ -1151,7 +1151,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ---------- Startseite (10.11.2026) ---------- */
 .home-head { display: flex; align-items: center; justify-content: space-between; padding: 0 0 6px; }
-.home-label { margin-bottom: 0; }
+.home-label { margin-bottom: 0; border-bottom: 0; padding-bottom: 0; }
 .home-reading { display: flex; gap: 16px; overflow-x: auto; padding: 8px 2px 24px; margin: 0 -2px; border-bottom: 1px solid var(--border); scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
 .home-book { flex: none; width: 148px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; background: none; border: 0; padding: 0; color: inherit; text-align: left; font-weight: 400; cursor: pointer; scroll-snap-align: start; }
 .home-book.skeleton-row { height: 222px; border-radius: 3px; }
