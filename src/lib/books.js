@@ -451,9 +451,37 @@ export async function uploadAvatar(userId, file) {
 }
 
 export async function loadMyQuotes() {
-  return supabase.from('quotes')
-    .select('id, page, body, created_at, work:works(title, author)')
+  const { data: u } = await supabase.auth.getUser();
+  const res = await supabase.from('quotes')
+    .select('id, page, page_end, body, created_at, work:works(title, author), saves:quote_saves(user_id, thought)')
+    .eq('user_id', u.user.id)
     .order('created_at', { ascending: false });
+  if (res.error) return res;
+  const data = (res.data || []).map((q) => ({ ...q, thought: (q.saves || []).find((s) => s.user_id === u.user.id)?.thought || '' }));
+  return { data };
+}
+
+// Seitenangabe eines Zitats: „p. 38“ oder „pp. 112–113“.
+export function pageLabel(q) {
+  if (!q?.page) return '';
+  return q.page_end ? `pp. ${q.page}\u2013${q.page_end}` : `p. ${q.page}`;
+}
+
+// ---------- Startseite ----------
+
+export async function loadDiary() {
+  return supabase.from('logs')
+    .select('id, rating, finished_on, is_reread, work:works(id, title, author, cover_url, work_key)')
+    .order('finished_on', { ascending: false })
+    .order('created_at', { ascending: false });
+}
+
+export async function loadHomeCounts(myId) {
+  const [logs, quotes] = await Promise.all([
+    supabase.from('logs').select('id', { count: 'exact', head: true }).eq('user_id', myId),
+    supabase.from('quotes').select('id', { count: 'exact', head: true }).eq('user_id', myId),
+  ]);
+  return { diary: logs.count ?? null, quotes: quotes.count ?? null };
 }
 
 export function renderStars(rating) {
